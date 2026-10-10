@@ -1,345 +1,213 @@
--- ============================================
--- 吃吃世界 自動腳本 v9（最終版）
--- Key: POPCAT_kki471111
--- 自動抓取 + 自動吃 + 自動售出
--- ============================================
+-- 放在 StarterPlayer > StarterPlayerScripts 中的 LocalScript
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
--- ===== 金鑰驗證 =====
-local VALID_KEY = "POPCAT_kki471111"
-local isVerified = false
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- ===== 狀態 =====
-local autoMode = false
-local isBusy = false
-local currentCount = 0
-local maxCount = 0
-local lastSellTime = 0
-local SELL_COOLDOWN = 2
+-- ==================== 金鑰設定 ====================
+local VALID_KEY = "kki471111"
 
--- ===== 取得 ProgressText UI =====
-local function getProgressText()
-    local pg = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pg then return nil end
-    local screenGui = pg:FindFirstChild("ScreenGui")
-    if not screenGui then return nil end
-    local sell = screenGui:FindFirstChild("Sell")
-    if not sell then return nil end
-    return sell:FindFirstChild("ProgressText")
-end
+-- ==================== 建立主 ScreenGui ====================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "KeySystemUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
 
--- ===== 讀取目前數量 =====
-local function updateCount()
-    local pt = getProgressText()
-    if pt and pt:IsA("TextLabel") then
-        local n = tonumber(pt.Text)
-        if n then
-            currentCount = n
-            return true
+-- ==================== 金鑰介面 ====================
+local keyFrame = Instance.new("Frame")
+keyFrame.Name = "KeyFrame"
+keyFrame.Size = UDim2.new(0, 350, 0, 220)
+keyFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+keyFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+keyFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+keyFrame.BorderSizePixel = 0
+keyFrame.Parent = screenGui
+
+local keyCorner = Instance.new("UICorner")
+keyCorner.CornerRadius = UDim.new(0, 12)
+keyCorner.Parent = keyFrame
+
+local keyStroke = Instance.new("UIStroke")
+keyStroke.Color = Color3.fromRGB(80, 150, 255)
+keyStroke.Thickness = 2
+keyStroke.Parent = keyFrame
+
+local keyTitle = Instance.new("TextLabel")
+keyTitle.Size = UDim2.new(1, 0, 0, 50)
+keyTitle.Position = UDim2.new(0, 0, 0, 15)
+keyTitle.BackgroundTransparency = 1
+keyTitle.Text = "🔑 請輸入金鑰"
+keyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyTitle.TextScaled = true
+keyTitle.Font = Enum.Font.GothamBold
+keyTitle.Parent = keyFrame
+
+local keyInput = Instance.new("TextBox")
+keyInput.Size = UDim2.new(0.8, 0, 0, 45)
+keyInput.Position = UDim2.new(0.5, 0, 0.45, 0)
+keyInput.AnchorPoint = Vector2.new(0.5, 0.5)
+keyInput.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+keyInput.BorderSizePixel = 0
+keyInput.Text = ""
+keyInput.PlaceholderText = "輸入金鑰..."
+keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+keyInput.TextScaled = true
+keyInput.Font = Enum.Font.Gotham
+keyInput.ClearTextOnFocus = false
+keyInput.Parent = keyFrame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 8)
+inputCorner.Parent = keyInput
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0.8, 0, 0, 45)
+submitBtn.Position = UDim2.new(0.5, 0, 0.8, 0)
+submitBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+submitBtn.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+submitBtn.BorderSizePixel = 0
+submitBtn.Text = "確認"
+submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitBtn.TextScaled = true
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.Parent = keyFrame
+
+local submitCorner = Instance.new("UICorner")
+submitCorner.CornerRadius = UDim.new(0, 8)
+submitCorner.Parent = submitBtn
+
+-- ==================== 主介面 ====================
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 400, 0, 300)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(80, 150, 255)
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+local mainTitle = Instance.new("TextLabel")
+mainTitle.Size = UDim2.new(1, 0, 0, 60)
+mainTitle.Position = UDim2.new(0, 0, 0, 15)
+mainTitle.BackgroundTransparency = 1
+mainTitle.Text = "窮小子打工記"
+mainTitle.TextColor3 = Color3.fromRGB(255, 220, 100)
+mainTitle.TextScaled = true
+mainTitle.Font = Enum.Font.GothamBold
+mainTitle.Parent = mainFrame
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0.7, 0, 0, 60)
+toggleBtn.Position = UDim2.new(0.5, 0, 0.55, 0)
+toggleBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Text = "自動挖礦"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleBtn
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.Position = UDim2.new(0, 0, 0.85, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "狀態：關閉"
+statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.Parent = mainFrame
+
+-- ==================== 挖礦功能 ====================
+local miningConnection = nil
+local isMining = false
+
+local function mineOnce()
+    local ok, err = pcall(function()
+        local Event = ReplicatedStorage.Packages.QuickNet.QuickNetRemote
+        local bytes = { 1, 0, 1, 24, 228, 189, 160, 230, 140, 150, 229, 136, 176, 228, 186, 134, 230, 183, 177, 229, 177, 130, 233, 146, 187, 231, 159, 179, 34, 34 }
+
+        local b = buffer.create(#bytes)
+        for i = 1, #bytes do
+            buffer.writeu8(b, i - 1, bytes[i])
         end
-    end
-    return false
-end
 
--- ===== 自動抓取 + 吃 =====
-local function grabAndEat()
-    if isBusy then return end
-    isBusy = true
-
-    local char = LocalPlayer.Character
-    if not char then isBusy = false; return end
-    local events = char:FindFirstChild("Events")
-    if not events then isBusy = false; return end
-
-    local grab = events:FindFirstChild("Grab")
-    local eat = events:FindFirstChild("Eat")
-
-    if grab then
-        pcall(function()
-            grab:FireServer(false, false, false)
-        end)
-    end
-
-    task.wait(0.5)
-
-    for i = 1, 3 do
-        if not autoMode then break end
-        if eat then
-            pcall(function()
-                eat:FireServer()
-            end)
-        end
-        task.wait(0.3)
-    end
-
-    isBusy = false
-end
-
--- ===== 自動售出 =====
-local function autoSell()
-    local now = tick()
-    if now - lastSellTime < SELL_COOLDOWN then return end
-
-    local char = LocalPlayer.Character
-    if not char then return end
-    local events = char:FindFirstChild("Events")
-    if not events then return end
-    local sell = events:FindFirstChild("Sell")
-    if not sell then return end
-
-    pcall(function()
-        sell:FireServer()
+        firesignal(Event.OnClientEvent, b)
     end)
-    lastSellTime = now
-    print("[吃吃世界] 💰 售出！賣出前數量：" .. currentCount)
-    task.wait(0.8)
+    if not ok then
+        warn("[自動挖礦] 執行失敗: " .. tostring(err))
+    end
 end
 
--- ===== 判斷是否滿了 =====
-local lastCount = -1
-local stuckTimes = 0
-local STUCK_THRESHOLD = 4
+local function startMining()
+    if isMining then return end
+    isMining = true
+    toggleBtn.Text = "停止挖礦"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
+    statusLabel.Text = "狀態：挖礦中..."
+    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
 
-local function isFull()
-    updateCount()
+    miningConnection = task.spawn(function()
+        while isMining do
+            mineOnce()
+            task.wait(0.1) -- 100 毫秒
+        end
+    end)
+end
 
-    if maxCount > 0 and currentCount >= maxCount then
-        return true
-    end
+local function stopMining()
+    isMining = false
+    toggleBtn.Text = "自動挖礦"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+    statusLabel.Text = "狀態：關閉"
+    statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+end
 
-    if currentCount == lastCount and currentCount > 0 then
-        stuckTimes = stuckTimes + 1
+toggleBtn.MouseButton1Click:Connect(function()
+    if isMining then
+        stopMining()
     else
-        stuckTimes = 0
+        startMining()
     end
-    lastCount = currentCount
-
-    if stuckTimes >= STUCK_THRESHOLD then
-        if currentCount > maxCount then
-            maxCount = currentCount
-            print("[吃吃世界] 偵測到上限：" .. maxCount)
-        end
-        stuckTimes = 0
-        return true
-    end
-
-    return false
-end
-
--- ===== 主循環 =====
-local function mainLoop()
-    lastCount = -1
-    stuckTimes = 0
-
-    while autoMode do
-        grabAndEat()
-
-        if isFull() then
-            print("[吃吃世界] ⚠️ 滿了（數量：" .. currentCount .. "），自動售出！")
-            autoSell()
-            task.wait(1)
-        end
-
-        task.wait(0.3)
-    end
-end
-
--- ===== 建立 UI =====
-local function createUI()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AutoEatWorldUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 260, 0, 300)
-    frame.Position = UDim2.new(0.05, 0, 0.3, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Draggable = true
-    frame.Parent = screenGui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = frame
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(100, 200, 255)
-    stroke.Thickness = 2
-    stroke.Parent = frame
-
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 35)
-    title.BackgroundColor3 = Color3.fromRGB(50, 100, 180)
-    title.BorderSizePixel = 0
-    title.Text = "🍽️ 吃吃世界 v9"
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextScaled = true
-    title.Font = Enum.Font.GothamBold
-    title.Parent = frame
-
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 10)
-    titleCorner.Parent = title
-
-    local keyBox = Instance.new("TextBox")
-    keyBox.Size = UDim2.new(0.9, 0, 0, 32)
-    keyBox.Position = UDim2.new(0.05, 0, 0, 45)
-    keyBox.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-    keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    keyBox.PlaceholderText = "輸入 Key..."
-    keyBox.Text = ""
-    keyBox.TextScaled = true
-    keyBox.Font = Enum.Font.Gotham
-    keyBox.Parent = frame
-
-    local keyCorner = Instance.new("UICorner")
-    keyCorner.CornerRadius = UDim.new(0, 6)
-    keyCorner.Parent = keyBox
-
-    local verifyBtn = Instance.new("TextButton")
-    verifyBtn.Size = UDim2.new(0.9, 0, 0, 30)
-    verifyBtn.Position = UDim2.new(0.05, 0, 0, 82)
-    verifyBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    verifyBtn.Text = "驗證 Key"
-    verifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    verifyBtn.TextScaled = true
-    verifyBtn.Font = Enum.Font.GothamBold
-    verifyBtn.Parent = frame
-
-    local verifyCorner = Instance.new("UICorner")
-    verifyCorner.CornerRadius = UDim.new(0, 6)
-    verifyCorner.Parent = verifyBtn
-
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(0.9, 0, 0, 22)
-    statusLabel.Position = UDim2.new(0.05, 0, 0, 115)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = "狀態：未驗證"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    statusLabel.TextScaled = true
-    statusLabel.Font = Enum.Font.Gotham
-    statusLabel.Parent = frame
-
-    local countLabel = Instance.new("TextLabel")
-    countLabel.Size = UDim2.new(0.9, 0, 0, 22)
-    countLabel.Position = UDim2.new(0.05, 0, 0, 140)
-    countLabel.BackgroundTransparency = 1
-    countLabel.Text = "📦 數量：0"
-    countLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-    countLabel.TextScaled = true
-    countLabel.Font = Enum.Font.GothamBold
-    countLabel.Parent = frame
-
-    local startBtn = Instance.new("TextButton")
-    startBtn.Size = UDim2.new(0.9, 0, 0, 42)
-    startBtn.Position = UDim2.new(0.05, 0, 0, 170)
-    startBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 90)
-    startBtn.Text = "▶ 開始自動模式"
-    startBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    startBtn.TextScaled = true
-    startBtn.Font = Enum.Font.GothamBold
-    startBtn.Parent = frame
-
-    local startCorner = Instance.new("UICorner")
-    startCorner.CornerRadius = UDim.new(0, 6)
-    startCorner.Parent = startBtn
-
-    local sellBtn = Instance.new("TextButton")
-    sellBtn.Size = UDim2.new(0.9, 0, 0, 30)
-    sellBtn.Position = UDim2.new(0.05, 0, 0, 220)
-    sellBtn.BackgroundColor3 = Color3.fromRGB(180, 130, 60)
-    sellBtn.Text = "💰 手動售出"
-    sellBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sellBtn.TextScaled = true
-    sellBtn.Font = Enum.Font.GothamBold
-    sellBtn.Parent = frame
-
-    local sellCorner = Instance.new("UICorner")
-    sellCorner.CornerRadius = UDim.new(0, 6)
-    sellCorner.Parent = sellBtn
-
-    local infoBtn = Instance.new("TextButton")
-    infoBtn.Size = UDim2.new(0.9, 0, 0, 26)
-    infoBtn.Position = UDim2.new(0.05, 0, 0, 256)
-    infoBtn.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-    infoBtn.Text = "📊 檢查數量 UI"
-    infoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    infoBtn.TextScaled = true
-    infoBtn.Font = Enum.Font.Gotham
-    infoBtn.Parent = frame
-
-    local infoCorner = Instance.new("UICorner")
-    infoCorner.CornerRadius = UDim.new(0, 6)
-    infoCorner.Parent = infoBtn
-
-    verifyBtn.MouseButton1Click:Connect(function()
-        if keyBox.Text == VALID_KEY then
-            isVerified = true
-            statusLabel.Text = "狀態：✅ 驗證成功"
-            statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            verifyBtn.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
-        else
-            isVerified = false
-            statusLabel.Text = "狀態：❌ Key 錯誤"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        end
-    end)
-
-    startBtn.MouseButton1Click:Connect(function()
-        if not isVerified then
-            statusLabel.Text = "狀態：⚠️ 請先驗證 Key"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-            return
-        end
-
-        autoMode = not autoMode
-
-        if autoMode then
-            startBtn.Text = "⏹ 停止自動模式"
-            startBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-            statusLabel.Text = "狀態：🟢 運行中..."
-            statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            task.spawn(mainLoop)
-        else
-            startBtn.Text = "▶ 開始自動模式"
-            startBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 90)
-            statusLabel.Text = "狀態：已停止"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-        end
-    end)
-
-    sellBtn.MouseButton1Click:Connect(function()
-        autoSell()
-    end)
-
-    infoBtn.MouseButton1Click:Connect(function()
-        local pt = getProgressText()
-        if pt then
-            print("[檢查] ProgressText 路徑：", pt:GetFullName())
-            print("[檢查] 目前文字：", pt.Text)
-        else
-            print("[檢查] ❌ 找不到 ProgressText")
-        end
-    end)
-
-    task.spawn(function()
-        while screenGui.Parent do
-            updateCount()
-            countLabel.Text = "📦 數量：" .. currentCount .. (maxCount > 0 and (" / " .. maxCount) or "")
-            task.wait(0.3)
-        end
-    end)
-end
-
--- ===== 初始化 =====
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-    isBusy = false
 end)
 
-createUI()
-print("[吃吃世界] v9 已載入 ✅ Key: POPCAT_kki471111")
+-- ==================== 金鑰驗證 ====================
+local function trySubmit()
+    if keyInput.Text == VALID_KEY then
+        keyFrame.Visible = false
+        mainFrame.Visible = true
+    else
+        keyInput.Text = ""
+        keyInput.PlaceholderText = "❌ 金鑰錯誤，請重試"
+        -- 錯誤時紅色閃爍
+        keyStroke.Color = Color3.fromRGB(255, 80, 80)
+        task.wait(0.3)
+        keyStroke.Color = Color3.fromRGB(80, 150, 255)
+    end
+end
+
+submitBtn.MouseButton1Click:Connect(trySubmit)
+keyInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        trySubmit()
+    end
+end)

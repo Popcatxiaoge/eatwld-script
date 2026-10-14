@@ -3,7 +3,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local MINIMIZED_ICON_ID = "rbxassetid://120749806700474"
+local MINIMIZED_ICON_ID = "rbxassetid://123060704186856" -- 已更新為你的新圖片 ID
 local CORRECT_KEY = "kki471111" 
 
 -- 建立 ScreenGui
@@ -104,7 +104,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -50, 0, 40)
 TitleLabel.Position = UDim2.new(0, 16, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "吃吃世界 | 定時掛機選單"
+TitleLabel.Text = "吃吃世界 | 5分鐘定時掛機"
 TitleLabel.TextColor3 = Color3.fromRGB(20, 20, 20)
 TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.GothamBold
@@ -121,7 +121,7 @@ MinimizeBtn.TextSize = 18
 MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Parent = MainFrame
 
--- 縮小按鈕
+-- 縮小按鈕 (ImageButton 讀取你的新 ID)
 local MiniIconBtn = Instance.new("ImageButton")
 MiniIconBtn.Name = "MiniIconBtn"
 MiniIconBtn.Size = UDim2.new(0, 0, 0, 0)
@@ -167,158 +167,4 @@ ToggleLabel.Font = Enum.Font.GothamBold
 ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
 ToggleLabel.Parent = ToggleContainer
 
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 60, 0, 30)
-ToggleBtn.Position = UDim2.new(1, -70, 0.5, -15)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
-ToggleBtn.Text = "關閉"
-ToggleBtn.TextColor3 = Color3.fromRGB(100, 100, 100)
-ToggleBtn.TextSize = 13
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.Parent = ToggleContainer
-
-local BtnCorner2 = Instance.new("UICorner")
-BtnCorner2.CornerRadius = UDim.new(0, 8)
-BtnCorner2.Parent = ToggleBtn
-
--- 倒數計時器文字標籤
-local TimerLabel = Instance.new("TextLabel")
-TimerLabel.Size = UDim2.new(0.88, 0, 0, 30)
-TimerLabel.Position = UDim2.new(0.06, 0, 0, 125)
-TimerLabel.BackgroundTransparency = 1
-TimerLabel.Text = "下一次自動出售倒數：10:00 (已暫停)"
-TimerLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
-TimerLabel.TextSize = 13
-TimerLabel.Font = Enum.Font.Gotham
-TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
-TimerLabel.Parent = MainFrame
-
-----------------------------------------------------
--- 4. 核心邏輯：10 分鐘可暫停/恢復計時器與掛機迴圈
-----------------------------------------------------
-local autoFarmActive = false
-local timeRemaining = 600 -- 10 分鐘 = 600 秒
-
--- 格式化秒數為 MM:SS 格式
-local function formatTime(seconds)
-	local mins = math.floor(seconds / 60)
-	local secs = seconds % 60
-	return string.format("%02d:%02d", mins, secs)
-end
-
--- 獨立的計時器服務 (每秒扣除 1 秒)
-task.spawn(function()
-	while true do
-		if autoFarmActive then
-			if timeRemaining > 0 then
-				timeRemaining = timeRemaining - 1
-				TimerLabel.Text = "下一次自動出售倒數：" .. formatTime(timeRemaining)
-			else
-				-- 倒數歸零，觸發出售！
-				local character = LocalPlayer.Character or workspace:FindFirstChild(LocalPlayer.Name)
-				local events = character and character:FindFirstChild("Events")
-				local sellEvent = events and events:FindFirstChild("Sell")
-				
-				if sellEvent then
-					pcall(function()
-						print("[10分鐘時間到] 正在執行自動出售...")
-						sellEvent:FireServer()
-					end)
-				end
-				
-				-- 重置為 10 分鐘
-				timeRemaining = 600
-				TimerLabel.Text = "下一次自動出售倒數：10:00"
-			end
-		end
-		task.wait(1) -- 精確的 1 秒間隔
-	end
-end)
-
--- 開關點擊事件
-ToggleBtn.MouseButton1Click:Connect(function()
-	autoFarmActive = not autoFarmActive
-	
-	if autoFarmActive then
-		ToggleBtn.Text = "開啟"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-		ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		TimerLabel.Text = "下一次自動出售倒數：" .. formatTime(timeRemaining)
-		
-		-- 啟動「抓跟吃」的循環任務
-		task.spawn(function()
-			while autoFarmActive do
-				local character = LocalPlayer.Character or workspace:FindFirstChild(LocalPlayer.Name)
-				local events = character and character:FindFirstChild("Events")
-				
-				if events then
-					-- 1. 抓東西
-					local grabEvent = events:FindFirstChild("Grab")
-					if grabEvent then
-						pcall(function() grabEvent:FireServer(false, false, false) end)
-					end
-					
-					task.wait(0.1)
-					
-					-- 2. 吃東西
-					local eatEvent = events:FindFirstChild("Eat")
-					if eatEvent then
-						pcall(function() eatEvent:FireServer() end)
-					end
-				end
-				
-				task.wait(0.2) -- 循環間隔時間
-			end
-		end)
-	else
-		ToggleBtn.Text = "關閉"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
-		ToggleBtn.TextColor3 = Color3.fromRGB(100, 100, 100)
-		TimerLabel.Text = "下一次自動出售倒數：" .. formatTime(timeRemaining) .. " (已暫停)"
-	end
-end)
-
--- Key 驗證邏輯
-SubmitBtn.MouseButton1Click:Connect(function()
-	if KeyTextBox.Text == CORRECT_KEY then
-		SubmitBtn.Text = "驗證成功！"
-		SubmitBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-		task.wait(0.8)
-		KeyFrame:Destroy()
-		MainFrame.Visible = true
-	else
-		SubmitBtn.Text = "Key 錯誤！"
-		SubmitBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-		task.wait(1)
-		SubmitBtn.Text = "驗證解鎖"
-		SubmitBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	end
-end)
-
--- 縮小與展開主面板邏輯
-local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.InOut)
-
-local function minimizeUI()
-	local mainTween = TweenService:Create(MainFrame, tweenInfo, {Size = UDim2.new(0, 0, 0, 0)})
-	mainTween:Play()
-	mainTween.Completed:Connect(function()
-		MainFrame.Visible = false
-		MiniIconBtn.Visible = true
-		local iconTween = TweenService:Create(MiniIconBtn, tweenInfo, {Size = UDim2.new(0, 48, 0, 48)})
-		iconTween:Play()
-	end)
-end
-
-local function restoreUI()
-	local iconTween = TweenService:Create(MiniIconBtn, tweenInfo, {Size = UDim2.new(0, 0, 0, 0)})
-	iconTween:Play()
-	iconTween.Completed:Connect(function()
-		MiniIconBtn.Visible = false
-		MainFrame.Visible = true
-		local mainTween = TweenService:Create(MainFrame, tweenInfo, {Size = UDim2.new(0, 360, 0, 240)})
-		mainTween:Play()
-	end)
-end
-
-MinimizeBtn.MouseButton1Click:Connect(minimizeUI)
-MiniIconBtn.MouseButton1Click:Connect(restoreUI)
+local Toggle
